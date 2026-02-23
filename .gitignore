@@ -37,8 +37,14 @@ env/
 .ipynb_checkpoints/
 *.ipynb
 
-# Data
-data/
+# Data (keep .py files, ignore datasets)
+data/*.jpg
+data/*.png
+data/*.tar
+data/*.zip
+data/train/
+data/val/
+data/test/
 *.pt
 *.pth
 *.ckpt

@@ -351,9 +351,16 @@ def train(config: dict, device: torch.device, logger=None):
     scaler = torch.cuda.amp.GradScaler() if use_amp else None
     
     best_acc = 0.0
+    best_model_state = None
     num_epochs = config['training'].get('epochs', 100)
     output_dir = config.get('output_dir', 'outputs')
     os.makedirs(output_dir, exist_ok=True)
+    
+    # Early stopping
+    early_stopping_patience = config.get('early_stopping', {}).get('patience', 10)
+    early_stopping_min_delta = config.get('early_stopping', {}).get('min_delta', 0.0)
+    no_improvement_count = 0
+    early_stop = False
     
     for epoch in range(1, num_epochs + 1):
         model.train()
@@ -426,9 +433,20 @@ def train(config: dict, device: torch.device, logger=None):
                     'epoch': epoch,
                 })
             
-            if test_acc > best_acc:
+            # Early stopping check
+            if test_acc > best_acc + early_stopping_min_delta:
                 best_acc = test_acc
-                torch.save(model.state_dict(), os.path.join(output_dir, 'best_model.pt'))
+                best_model_state = model.state_dict().copy()
+                torch.save(best_model_state, os.path.join(output_dir, 'best_model.pt'))
+                no_improvement_count = 0
+                print(f"  -> New best model! Accuracy: {best_acc:.2f}%")
+            else:
+                no_improvement_count += 1
+                print(f"  -> No improvement for {no_improvement_count} evaluation(s)")
+                
+                if early_stopping_patience > 0 and no_improvement_count >= early_stopping_patience:
+                    print(f"Early stopping triggered after {epoch} epochs!")
+                    early_stop = True
         else:
             print(f"Epoch {epoch}/{num_epochs} - Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
             
@@ -441,6 +459,14 @@ def train(config: dict, device: torch.device, logger=None):
         
         if epoch % config.get('save_interval', 10) == 0:
             torch.save(model.state_dict(), os.path.join(output_dir, f'epoch_{epoch}.pt'))
+        
+        if early_stop:
+            break
+    
+    # Restore best model
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        print(f"Restored best model with accuracy: {best_acc:.2f}%")
     
     torch.save(model.state_dict(), os.path.join(output_dir, 'last_model.pt'))
     
@@ -520,6 +546,10 @@ def get_default_config() -> dict:
         },
         'eval': {
             'eval_interval': 1,
+        },
+        'early_stopping': {
+            'patience': 10,
+            'min_delta': 0.0,
         },
         'output_dir': 'outputs',
     }

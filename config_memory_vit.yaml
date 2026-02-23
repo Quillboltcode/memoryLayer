@@ -76,3 +76,8 @@ checkpoint_dir: "checkpoints"
 eval:
   eval_interval: 1  # Evaluate every N epochs
   eval_on_test: true
+
+# Early stopping
+early_stopping:
+  patience: 10  # Stop if no improvement for N evaluations
+  min_delta: 0.0  # Minimum improvement threshold
