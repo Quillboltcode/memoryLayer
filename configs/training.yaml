@@ -1,0 +1,61 @@
+training:
+  # Base training config
+  epochs: 100
+  batch_size: 256
+  accumulate_grad_batches: 1
+  learning_rate: 5e-4
+  weight_decay: 0.01
+  clip_grad: 1.0
+  
+  # Optimizer
+  optimizer: "adamw"
+  optimizer_kwargs:
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # Scheduler
+  scheduler: "cosine"
+  scheduler_kwargs:
+    warmup_epochs: 5
+    min_lr: 1e-6
+  
+  # Data
+  data:
+    train_path: "data/train"
+    val_path: "data/val"
+    image_size: 224
+    augmentation: "clip"
+    num_workers: 4
+    prefetch_factor: 2
+    pin_memory: true
+    persistent_workers: true
+  
+  # Logging
+  logging:
+    log_interval: 10
+    eval_interval: 1000
+    save_interval: 1000
+    project: "memory-vlm"
+    entity: null
+    name: "memory_clip"
+    wandb: true
+    tensorboard: true
+  
+  # Checkpointing
+  checkpoint:
+    save_top_k: 3
+    monitor: "val_loss"
+    mode: "min"
+    save_last: true
+    dirpath: "checkpoints"
+    filename: "memory_clip-{epoch:02d}-{val_loss:.4f}"
+  
+  # Distributed
+  distributed: false
+  precision: "32-true"
+  
+  # Misc
+  seed: 42
+  deterministic: false
+  benchmark: true
+  resume: null

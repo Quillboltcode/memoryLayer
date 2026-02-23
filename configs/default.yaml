@@ -1,0 +1,12 @@
+defaults:
+  - model
+  - training
+  - project
+  - _self_
+
+hydra:
+  run:
+    dir: "outputs/${training.logging.name}/${now:%Y-%m-%d_%H-%M-%S}"
+  sweep:
+    dir: "sweeps/${training.logging.name}/${now:%Y-%m-%d_%H-%M-%S}"
+    subdir: "${hydra.job.num}"

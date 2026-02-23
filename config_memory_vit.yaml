@@ -1,0 +1,78 @@
+# Memory-VLM Configuration for Hopfield-augmented ViT
+# Copy this file, modify values, and pass to train.py via --config-path
+
+# Model settings
+model:
+  name: "memory_vit"  # Options: memory_vit, linear_probe, vpt_shallow, vpt_deep, frozen_vit
+  backbone: "vit_base_patch16_224"  # timm model name
+  pretrained: true
+  num_classes: 10  # CIFAR-10 = 10, CIFAR-100 = 100, RAFDB = 7
+  
+  # Hopfield-specific settings (for memory_vit)
+  mem_size: 1000
+  hopfield_position: "after_attn"  # Options: after_attn, after_ffn
+  beta: 0.125
+  dropout: 0.1
+  freeze_backbone: true
+  
+  # VPT-specific settings
+  num_prompts: 10
+  
+  # Image settings
+  image_size: 224
+
+# Training settings
+training:
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 0.01
+  
+  # Optimizer settings
+  optimizer: "adamw"  # Options: adamw, sgd
+  scheduler: "cosine"  # Options: cosine, step, none
+  
+  # Learning rate scheduler
+  warmup_epochs: 5
+  min_lr: 1e-6
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0
+  
+  # Mixed precision
+  use_amp: true
+
+# Data settings
+data:
+  dataset: "cifar10"  # Options: cifar10, cifar100, rafdb
+  root: "./data"
+  
+  # Augmentation settings
+  augment: true
+  image_size: 224
+  
+  # DataLoader settings
+  num_workers: 4
+  pin_memory: true
+  
+  # Few-shot settings (overrides dataset)
+  few_shot: false
+  n_shot: 5
+
+# Logging settings
+logging:
+  project: "memory-vlm"
+  name: "memory_vit_exp"
+  wandb: true
+  tensorboard: false
+  log_interval: 10
+  save_interval: 10
+
+# Paths
+output_dir: "outputs"
+checkpoint_dir: "checkpoints"
+
+# Evaluation
+eval:
+  eval_interval: 1  # Evaluate every N epochs
+  eval_on_test: true

@@ -1,0 +1,33 @@
+# Simple config file for Kaggle notebooks
+# Copy this file, modify values, and pass to train.py via --config-path
+
+# Model settings
+model:
+  name: "memory_clip_vit_b_16"
+  embed_dim: 512
+  num_memory_tokens: 64
+  image_size: 224
+
+# Training settings
+training:
+  epochs: 100
+  batch_size: 256
+  learning_rate: 0.0005
+  weight_decay: 0.01
+
+# Data settings
+data:
+  train_path: "data/train"
+  val_path: "data/val"
+  image_size: 224
+
+# Logging settings
+logging:
+  project: "memory-vlm"
+  name: "memory_clip"
+  wandb: true
+  tensorboard: true
+
+# Paths
+output_dir: "outputs"
+checkpoint_dir: "checkpoints"
