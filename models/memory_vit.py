@@ -50,11 +50,8 @@ class MemoryAugmentedViT(nn.Module):
         num_blocks = len(self.backbone.blocks)
         
         for i in range(num_blocks):
-            num_heads = self.backbone.blocks[i].attn.num_heads
-            
             hopfield = HopfieldLayer(
                 dim=self.embed_dim,
-                num_heads=num_heads,
                 mem_size=mem_size,
                 beta=beta,
                 dropout=dropout
