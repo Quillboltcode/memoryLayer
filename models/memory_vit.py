@@ -4,6 +4,42 @@ from typing import Optional, Literal
 import timm
 
 
+class HopfieldBlockWrapper(nn.Module):
+    """Wraps a standard ViT block with Hopfield augmentation"""
+    def __init__(self, vit_block, hopfield_layer, position="after_attn"):
+        super().__init__()
+        self.vit_block = vit_block
+        self.hopfield_layer = hopfield_layer
+        self.position = position
+        
+        self.vit_block.drop_path = nn.Identity()
+
+    def forward(self, x):
+        x_residual = x
+        
+        x = self.vit_block.norm1(x)
+        x = self.vit_block.attn(x)
+        
+        if self.position == "after_attn":
+            x = x_residual + x
+            x = x + self.hopfield_layer(x)
+        elif self.position == "residual":
+            x = x_residual + x + self.hopfield_layer(x_residual)
+        elif self.position == "after_mlp":
+            x = x_residual + x
+            
+        x_residual = x
+        x = self.vit_block.norm2(x)
+        x = self.vit_block.mlp(x)
+        
+        if self.position == "after_mlp":
+            x = x_residual + x + self.hopfield_layer(x_residual + x)
+        else:
+            x = x_residual + x
+            
+        return x
+
+
 class MemoryAugmentedViT(nn.Module):
     """
     Vision Transformer with Hopfield-based associative memory.
@@ -35,7 +71,6 @@ class MemoryAugmentedViT(nn.Module):
         )
         self.embed_dim = self.backbone.embed_dim
         
-        self.hopfield_layers = nn.ModuleList()
         self._insert_hopfield_layers(mem_size, hopfield_position, beta, dropout)
         
         self.head = nn.Linear(self.embed_dim, num_classes)
@@ -48,6 +83,7 @@ class MemoryAugmentedViT(nn.Module):
         from .HopfieldLayer import HopfieldLayer
         
         num_blocks = len(self.backbone.blocks)
+        new_blocks = []
         
         for i in range(num_blocks):
             hopfield = HopfieldLayer(
@@ -56,7 +92,14 @@ class MemoryAugmentedViT(nn.Module):
                 beta=beta,
                 dropout=dropout
             )
-            self.hopfield_layers.append(hopfield)
+            wrapped_block = HopfieldBlockWrapper(
+                self.backbone.blocks[i],
+                hopfield,
+                position=position
+            )
+            new_blocks.append(wrapped_block)
+        
+        self.backbone.blocks = nn.Sequential(*new_blocks)
     
     def _freeze_backbone(self):
         for name, param in self.backbone.named_parameters():
@@ -68,12 +111,12 @@ class MemoryAugmentedViT(nn.Module):
             param.requires_grad = True
     
     def set_memory_mode(self, mode: str):
-        for hf in self.hopfield_layers:
-            hf.set_memory_mode(mode)
+        for block in self.backbone.blocks:
+            block.hopfield_layer.set_memory_mode(mode)
     
     def store_class_prototypes(self, features, labels, num_classes):
-        for hf in self.hopfield_layers:
-            hf.store_class_prototypes(features, labels, num_classes)
+        for block in self.backbone.blocks:
+            block.hopfield_layer.store_class_prototypes(features, labels, num_classes)
     
     def forward(self, x, return_features: bool = False):
         features = self.backbone.forward_features(x)
