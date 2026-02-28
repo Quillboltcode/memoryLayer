@@ -72,7 +72,7 @@ def get_dataloader(dataset_name, batch_size=32, num_workers=4, image_size=224, r
     import os
     # Import here to avoid issues if not installed
     from data.cifar import CIFAR10Dataset
-    from data.rafdb import RAFDB
+    from data.rafdb import RAFDBDataset
     from torchvision.datasets import ImageFolder
     from torchvision import transforms
     
@@ -99,8 +99,8 @@ def get_dataloader(dataset_name, batch_size=32, num_workers=4, image_size=224, r
         test_ds = CIFAR10Dataset(root=root, train=False, download=True)
         num_classes = 10
     elif dataset_name.lower() == 'rafdb':
-        train_ds = RAFDB(root=root, train=True, image_size=image_size)
-        test_ds = RAFDB(root=root, train=False, image_size=image_size)
+        train_ds = RAFDBDataset(root=root, split='train', image_size=image_size)
+        test_ds = RAFDBDataset(root=root, split='test', image_size=image_size)
         num_classes = 7
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
