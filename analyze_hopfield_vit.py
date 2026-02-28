@@ -650,7 +650,9 @@ class HopfieldAnalyzer:
                 dim=-1
             )
         
-        num_patches = int(np.sqrt(attn_hopfield.shape[1]))
+        # Hopfield attention shape: (B, N, mem_size) - N is num tokens
+        num_tokens = attn_hopfield.shape[1]
+        num_patches = int(np.sqrt(num_tokens - 1))  # -1 for CLS token
         
         if attn_vit is not None:
             num_heads = attn_vit.shape[1] if len(attn_vit.shape) > 3 else 1
@@ -663,14 +665,16 @@ class HopfieldAnalyzer:
                 axes[0, head].imshow(attn_vit[0, head].cpu().numpy())
                 axes[0, head].set_title(f'ViT Attention Head {head}')
                 
-                axes[1, head].imshow(attn_hopfield[0, head].cpu().numpy().reshape(num_patches, num_patches), cmap='hot')
-                axes[1, head].set_title(f'Hopfield Retrieval Head {head}')
+                # Show memory attention for CLS token (not spatial)
+                cls_attn = attn_hopfield[0, 0].cpu().numpy()
+                top_k = min(50, len(cls_attn))
+                top_indices = np.argsort(cls_attn)[-top_k:]
+                axes[1, head].bar(range(top_k), cls_attn[top_indices])
+                axes[1, head].set_title(f'Hopfield Memory Attn (CLS)')
                 
-                diff = attn_vit[0, head].cpu().numpy().flatten() - attn_hopfield[0, head].cpu().numpy()
-                diff = diff[:num_patches**2].reshape(num_patches, num_patches)
-                im = axes[2, head].imshow(diff, cmap='coolwarm', vmin=-0.1, vmax=0.1)
-                axes[2, head].set_title(f'Difference Head {head}')
-                plt.colorbar(im, ax=axes[2, head])
+                # Skip diff visualization since dimensions don't match
+                axes[2, head].axis('off')
+                axes[2, head].set_title('N/A (dim mismatch)')
             
             plt.tight_layout()
             plt.savefig('attention_comparison.png', dpi=150, bbox_inches='tight')
@@ -684,11 +688,25 @@ class HopfieldAnalyzer:
             ).item()
         else:
             # Skip ViT attention comparison if get_attention not available
+            # Hopfield attention is over memory slots, not spatial patches
             fig, axes = plt.subplots(1, 2, figsize=(12, 5))
             
-            for head in range(min(2, attn_hopfield.shape[1])):
-                axes[head].imshow(attn_hopfield[0, head].cpu().numpy().reshape(num_patches, num_patches), cmap='hot')
-                axes[head].set_title(f'Hopfield Retrieval Head {head}')
+            # Show memory attention for CLS token
+            cls_attn = attn_hopfield[0, 0].cpu().numpy()  # (mem_size,)
+            
+            # Plot top-k memory activations
+            top_k = min(50, len(cls_attn))
+            top_indices = np.argsort(cls_attn)[-top_k:]
+            axes[0].bar(range(top_k), cls_attn[top_indices])
+            axes[0].set_title(f'Top {top_k} Memory Slot Activations (CLS)')
+            axes[0].set_xlabel('Memory Slot')
+            axes[0].set_ylabel('Attention')
+            
+            # Histogram of all memory activations
+            axes[1].hist(cls_attn, bins=50)
+            axes[1].set_title('Memory Attention Distribution')
+            axes[1].set_xlabel('Attention')
+            axes[1].set_ylabel('Count')
             
             plt.tight_layout()
             plt.savefig('attention_comparison.png', dpi=150, bbox_inches='tight')
