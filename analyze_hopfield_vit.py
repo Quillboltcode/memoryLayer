@@ -72,8 +72,28 @@ def get_dataloader(dataset_name, batch_size=32, num_workers=4, image_size=224, r
     # Import here to avoid issues if not installed
     from data.cifar import CIFAR10, CIFAR100
     from data.rafdb import RAFDB
+    from torchvision.datasets import ImageFolder
+    from torchvision import transforms
     
-    if dataset_name.lower() == 'cifar10':
+    if dataset_name.lower() == 'imagefolder':
+        test_transform = transforms.Compose([
+            transforms.Resize((image_size, image_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        
+        train_root = os.path.join(root, 'train')
+        test_root = os.path.join(root, 'test')
+        
+        # Check if train/test folders exist, otherwise use root
+        if not os.path.exists(train_root):
+            train_root = root
+            test_root = root
+        
+        train_ds = ImageFolder(train_root, transform=test_transform)
+        test_ds = ImageFolder(test_root, transform=test_transform)
+        num_classes = len(train_ds.classes)
+    elif dataset_name.lower() == 'cifar10':
         train_ds = CIFAR10(root=root, train=True, download=True)
         test_ds = CIFAR10(root=root, train=False, download=True)
         num_classes = 10

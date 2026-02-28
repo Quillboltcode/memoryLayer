@@ -209,6 +209,58 @@ def create_dataloaders(config: dict, few_shot: bool = False, n_shot: int = 5):
     batch_size = config['training'].get('batch_size', 64)
     num_workers = config['data'].get('num_workers', 4)
     
+    # Support for custom ImageFolder dataset
+    if dataset_name == 'imagefolder':
+        from torchvision.datasets import ImageFolder
+        from torchvision import transforms
+        
+        train_transform = transforms.Compose([
+            transforms.Resize((image_size, image_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        
+        test_transform = transforms.Compose([
+            transforms.Resize((image_size, image_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        
+        train_root = os.path.join(root, 'train')
+        test_root = os.path.join(root, 'test')
+        
+        # Check if train/test folders exist, otherwise use root
+        if not os.path.exists(train_root):
+            train_root = root
+            test_root = root
+        
+        train_dataset = ImageFolder(train_root, transform=train_transform)
+        test_dataset = ImageFolder(test_root, transform=test_transform)
+        num_classes = len(train_dataset.classes)
+        
+        config['model']['num_classes'] = num_classes
+        
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=config['data'].get('pin_memory', True),
+        )
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=config['data'].get('pin_memory', True),
+        )
+        
+        return train_loader, test_loader, num_classes
+    
     if dataset_name == 'cifar10':
         if few_shot:
             from data.cifar import FewShotCIFAR10
