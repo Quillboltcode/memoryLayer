@@ -632,7 +632,12 @@ class HopfieldAnalyzer:
                 features = self.model.backbone.blocks[i](features)
             
             x = original_block.vit_block.norm1(features)
-            attn_vit = original_block.vit_block.attn.get_attention(x)
+            
+            # Try to get attention, fall back to None if not available
+            try:
+                attn_vit = original_block.vit_block.attn.get_attention(x)
+            except AttributeError:
+                attn_vit = None
         
         self.model.backbone.blocks[layer_idx] = original_block
         
@@ -645,36 +650,52 @@ class HopfieldAnalyzer:
                 dim=-1
             )
         
-        num_heads = attn_vit.shape[1] if len(attn_vit.shape) > 3 else 1
         num_patches = int(np.sqrt(attn_hopfield.shape[1]))
         
-        fig, axes = plt.subplots(3, min(num_heads, 4), figsize=(15, 12))
-        if num_heads == 1:
-            axes = axes.T
-        
-        for head in range(min(num_heads, 4)):
-            axes[0, head].imshow(attn_vit[0, head].cpu().numpy())
-            axes[0, head].set_title(f'ViT Attention Head {head}')
+        if attn_vit is not None:
+            num_heads = attn_vit.shape[1] if len(attn_vit.shape) > 3 else 1
             
-            axes[1, head].imshow(attn_hopfield[0, head].cpu().numpy().reshape(num_patches, num_patches), cmap='hot')
-            axes[1, head].set_title(f'Hopfield Retrieval Head {head}')
+            fig, axes = plt.subplots(3, min(num_heads, 4), figsize=(15, 12))
+            if num_heads == 1:
+                axes = axes.T
             
-            diff = attn_vit[0, head].cpu().numpy().flatten() - attn_hopfield[0, head].cpu().numpy()
-            diff = diff[:num_patches**2].reshape(num_patches, num_patches)
-            im = axes[2, head].imshow(diff, cmap='coolwarm', vmin=-0.1, vmax=0.1)
-            axes[2, head].set_title(f'Difference Head {head}')
-            plt.colorbar(im, ax=axes[2, head])
-        
-        plt.tight_layout()
-        plt.savefig('attention_comparison.png', dpi=150, bbox_inches='tight')
-        plt.close()
-        
-        hopfield_flat = attn_hopfield[0, 0].cpu().numpy().flatten()[:attn_vit[0, 0].numel()]
-        cosine_sim = F.cosine_similarity(
-            torch.tensor(attn_vit[0, 0].flatten()), 
-            torch.tensor(hopfield_flat), 
-            dim=0
-        ).item()
+            for head in range(min(num_heads, 4)):
+                axes[0, head].imshow(attn_vit[0, head].cpu().numpy())
+                axes[0, head].set_title(f'ViT Attention Head {head}')
+                
+                axes[1, head].imshow(attn_hopfield[0, head].cpu().numpy().reshape(num_patches, num_patches), cmap='hot')
+                axes[1, head].set_title(f'Hopfield Retrieval Head {head}')
+                
+                diff = attn_vit[0, head].cpu().numpy().flatten() - attn_hopfield[0, head].cpu().numpy()
+                diff = diff[:num_patches**2].reshape(num_patches, num_patches)
+                im = axes[2, head].imshow(diff, cmap='coolwarm', vmin=-0.1, vmax=0.1)
+                axes[2, head].set_title(f'Difference Head {head}')
+                plt.colorbar(im, ax=axes[2, head])
+            
+            plt.tight_layout()
+            plt.savefig('attention_comparison.png', dpi=150, bbox_inches='tight')
+            plt.close()
+            
+            hopfield_flat = attn_hopfield[0, 0].cpu().numpy().flatten()[:attn_vit[0, 0].numel()]
+            cosine_sim = F.cosine_similarity(
+                torch.tensor(attn_vit[0, 0].flatten()), 
+                torch.tensor(hopfield_flat), 
+                dim=0
+            ).item()
+        else:
+            # Skip ViT attention comparison if get_attention not available
+            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+            
+            for head in range(min(2, attn_hopfield.shape[1])):
+                axes[head].imshow(attn_hopfield[0, head].cpu().numpy().reshape(num_patches, num_patches), cmap='hot')
+                axes[head].set_title(f'Hopfield Retrieval Head {head}')
+            
+            plt.tight_layout()
+            plt.savefig('attention_comparison.png', dpi=150, bbox_inches='tight')
+            plt.close()
+            
+            cosine_sim = 0.0
+            print("Note: ViT attention not available for comparison")
         
         return {"cosine_similarity": cosine_sim}
     
