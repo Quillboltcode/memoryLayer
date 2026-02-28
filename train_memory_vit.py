@@ -324,6 +324,73 @@ def setup_logging(config: dict):
     return None
 
 
+def print_model_freeze_status(model: nn.Module):
+    """Print which model components are frozen vs trainable."""
+    frozen_params = []
+    trainable_params = []
+    
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            trainable_params.append(name)
+        else:
+            frozen_params.append(name)
+    
+    print("\n" + "="*60)
+    print("MODEL FREEZE STATUS")
+    print("="*60)
+    
+    # Group by component
+    components = {}
+    for name in trainable_params:
+        if 'hopfield' in name:
+            comp = 'hopfield'
+        elif 'head' in name:
+            comp = 'head'
+        else:
+            comp = 'other_trainable'
+        components.setdefault(comp, []).append(name)
+    
+    for name in frozen_params:
+        if 'blocks' in name:
+            comp = 'backbone_blocks'
+        elif 'patch_embed' in name:
+            comp = 'patch_embed'
+        elif 'pos_drop' in name or 'pos_embed' in name:
+            comp = 'pos_embed'
+        elif 'norm' in name:
+            comp = 'norm'
+        else:
+            comp = 'other_frozen'
+        components.setdefault(comp, []).append(name)
+    
+    # Print trainable components
+    print("\n[TRAINABLE PARAMETERS]")
+    for comp in ['hopfield', 'head']:
+        if comp in components:
+            params = components[comp]
+            total_params = sum(p.numel() for n, p in model.named_parameters() if n in params)
+            print(f"  {comp}: {len(params)} tensors, {total_params:,} params")
+    
+    # Print frozen components
+    print("\n[FROZEN PARAMETERS]")
+    for comp in ['backbone_blocks', 'patch_embed', 'pos_embed', 'norm']:
+        if comp in components:
+            params = components[comp]
+            total_params = sum(p.numel() for n, p in model.named_parameters() if n in params)
+            print(f"  {comp}: {len(params)} tensors, {total_params:,} params")
+    
+    # Summary
+    frozen_count = sum(p.numel() for n, p in model.named_parameters() if not p.requires_grad)
+    trainable_count = sum(p.numel() for n, p in model.named_parameters() if p.requires_grad)
+    total_count = frozen_count + trainable_count
+    
+    print("\n[SUMMARY]")
+    print(f"  Trainable: {trainable_count:,} ({100*trainable_count/total_count:.2f}%)")
+    print(f"  Frozen: {frozen_count:,} ({100*frozen_count/total_count:.2f}%)")
+    print(f"  Total: {total_count:,}")
+    print("="*60 + "\n")
+
+
 def train(config: dict, device: torch.device, logger=None):
     """Main training function."""
     print(f"Config: {config}")
@@ -331,6 +398,8 @@ def train(config: dict, device: torch.device, logger=None):
     
     model = create_model(config, device)
     print(f"Model: {config['model']['name']}")
+    
+    print_model_freeze_status(model)
     
     train_loader, test_loader, num_classes = create_dataloaders(config)
     print(f"Dataset: {config['data']['dataset']} ({len(train_loader.dataset)} train, {len(test_loader.dataset)} test)")
