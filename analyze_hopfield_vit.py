@@ -417,11 +417,12 @@ class HopfieldAnalyzer:
         images = images.to(self.device)[:num_samples]
         
         original_temp = self.model.backbone.blocks[layer_idx].hopfield_layer.log_temp.data.clone()
+        original_temp = original_temp.to(self.device)
         temperatures = np.logspace(-2, 1, 20)
         
         predictions = []
         for temp in tqdm(temperatures, desc="Testing temperatures"):
-            self.model.backbone.blocks[layer_idx].hopfield_layer.log_temp.data = torch.log(torch.tensor([temp]))
+            self.model.backbone.blocks[layer_idx].hopfield_layer.log_temp.data = torch.log(torch.tensor([temp], device=self.device))
             
             with torch.no_grad():
                 logits = self.model(images)
