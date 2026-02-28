@@ -23,7 +23,6 @@ configs/
 | `patch_size` | int | `16` | ViT patch size |
 | `embed_dim` | int | `512` | Embedding dimension |
 | `depth` | int | `12` | Number of transformer layers |
-| `num_heads` | int | `8` | Attention heads |
 | `mlp_ratio` | float | `4.0` | MLP hidden dim multiplier |
 | `drop_rate` | float | `0.0` | Dropout rate |
 | `attn_drop_rate` | float | `0.0` | Attention dropout rate |
@@ -49,7 +48,6 @@ configs/
 | `max_len` | int | `77` | Maximum sequence length |
 | `embed_dim` | int | `512` | Embedding dimension |
 | `depth` | int | `12` | Number of transformer layers |
-| `num_heads` | int | `8` | Attention heads |
 | `mlp_ratio` | float | `4.0` | MLP hidden dim multiplier |
 
 ### Contrastive Loss (`model.contrastive`)

@@ -4,7 +4,6 @@ model:
   patch_size: 16
   embed_dim: 512
   depth: 12
-  num_heads: 8
   mlp_ratio: 4.0
   drop_rate: 0.0
   attn_drop_rate: 0.0
@@ -26,7 +25,6 @@ model:
     max_len: 77
     embed_dim: 512
     depth: 12
-    num_heads: 8
     mlp_ratio: 4.0
 
   # Contrastive training config
