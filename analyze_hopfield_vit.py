@@ -67,6 +67,13 @@ def get_config_dataset_info(config: dict) -> tuple:
     return dataset_name, batch_size, num_workers, image_size, root
 
 
+def get_batch_data(batch):
+    """Handle both tuple (img, label) and dict {'image': img, 'label': label} formats."""
+    if isinstance(batch, dict):
+        return batch['image'], batch['label']
+    return batch
+
+
 def get_dataloader(dataset_name, batch_size=32, num_workers=4, image_size=224, root='./data'):
     """Create dataloader for specified dataset."""
     import os
@@ -254,7 +261,8 @@ class HopfieldAnalyzer:
         """Identify which input features most influence memory retrieval."""
         all_grads = []
         
-        for batch_idx, (images, _) in enumerate(tqdm(dataloader, desc="Analyzing queries")):
+        for batch_idx, batch in enumerate(tqdm(dataloader, desc="Analyzing queries")):
+            images, _ = get_batch_data(batch)
             if batch_idx * images.shape[0] >= num_samples:
                 break
             
@@ -308,7 +316,8 @@ class HopfieldAnalyzer:
         
         self.model.eval()
         with torch.no_grad():
-            for images, _ in tqdm(dataloader, desc="Collecting queries"):
+            for batch in tqdm(dataloader, desc="Collecting queries"):
+                images, _ = get_batch_data(batch)
                 images = images.to(self.device)
                 features = self.model.backbone.patch_embed(images)
                 features = self.model.backbone._pos_embed(features)
@@ -364,7 +373,8 @@ class HopfieldAnalyzer:
         
         self.model.eval()
         with torch.no_grad():
-            for images, _ in tqdm(dataloader, desc="Monitoring temperature"):
+            for batch in tqdm(dataloader, desc="Monitoring temperature"):
+                images, _ = get_batch_data(batch)
                 images = images.to(self.device)
                 
                 for hopfield in self.get_hopfield_layers():
@@ -403,7 +413,7 @@ class HopfieldAnalyzer:
     
     def analyze_temperature_sensitivity(self, dataloader, layer_idx=0, num_samples=10):
         """Test how model predictions change with temperature."""
-        images, _ = next(iter(dataloader))
+        images, _ = get_batch_data(next(iter(dataloader)))
         images = images.to(self.device)[:num_samples]
         
         original_temp = self.model.backbone.blocks[layer_idx].hopfield_layer.log_temp.data.clone()
@@ -455,7 +465,8 @@ class HopfieldAnalyzer:
         
         self.model.eval()
         with torch.no_grad():
-            for batch_idx, (images, _) in enumerate(tqdm(dataloader, desc="Tracking utilization")):
+            for batch_idx, batch in enumerate(tqdm(dataloader, desc="Tracking utilization")):
+                images, _ = get_batch_data(batch)
                 if batch_idx >= num_batches:
                     break
                 
@@ -530,7 +541,8 @@ class HopfieldAnalyzer:
         
         self.model.eval()
         with torch.no_grad():
-            for images, labels in tqdm(dataloader, desc="Analyzing specialization"):
+            for batch in tqdm(dataloader, desc="Analyzing specialization"):
+                images, labels = get_batch_data(batch)
                 images, labels = images.to(self.device), labels.to(self.device)
                 
                 features = self.model.backbone.patch_embed(images)
@@ -591,7 +603,7 @@ class HopfieldAnalyzer:
     
     def compare_attention_patterns(self, dataloader, layer_idx=3):
         """Compare standard ViT attention with Hopfield retrieval patterns."""
-        images, _ = next(iter(dataloader))
+        images, _ = get_batch_data(next(iter(dataloader)))
         images = images.to(self.device)[:4]
         
         original_block = self.model.backbone.blocks[layer_idx]
@@ -695,7 +707,8 @@ class HopfieldAnalyzer:
         
         self.model.eval()
         with torch.no_grad():
-            for images, labels in tqdm(dataloader, desc="Extracting features (no hopfield)"):
+            for batch in tqdm(dataloader, desc="Extracting features (no hopfield)"):
+                images, labels = get_batch_data(batch)
                 images = images.to(self.device)
                 features = self.model.backbone.forward_features(images)
                 if isinstance(features, tuple):
@@ -710,7 +723,8 @@ class HopfieldAnalyzer:
         self.model.backbone.blocks = nn.ModuleList(original_blocks)
         
         with torch.no_grad():
-            for images, _ in tqdm(dataloader, desc="Extracting features (with hopfield)"):
+            for batch in tqdm(dataloader, desc="Extracting features (with hopfield)"):
+                images, _ = get_batch_data(batch)
                 images = images.to(self.device)
                 features = self.model.backbone.forward_features(images)
                 if isinstance(features, tuple):
