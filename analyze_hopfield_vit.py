@@ -70,7 +70,7 @@ def get_config_dataset_info(config: dict) -> tuple:
 def get_dataloader(dataset_name, batch_size=32, num_workers=4, image_size=224, root='./data'):
     """Create dataloader for specified dataset."""
     # Import here to avoid issues if not installed
-    from data.cifar import CIFAR10, CIFAR100
+    from data.cifar import CIFAR10
     from data.rafdb import RAFDB
     from torchvision.datasets import ImageFolder
     from torchvision import transforms
@@ -97,10 +97,6 @@ def get_dataloader(dataset_name, batch_size=32, num_workers=4, image_size=224, r
         train_ds = CIFAR10(root=root, train=True, download=True)
         test_ds = CIFAR10(root=root, train=False, download=True)
         num_classes = 10
-    elif dataset_name.lower() == 'cifar100':
-        train_ds = CIFAR100(root=root, train=True, download=True)
-        test_ds = CIFAR100(root=root, train=False, download=True)
-        num_classes = 100
     elif dataset_name.lower() == 'rafdb':
         train_ds = RAFDB(root=root, train=True, image_size=image_size)
         test_ds = RAFDB(root=root, train=False, image_size=image_size)
